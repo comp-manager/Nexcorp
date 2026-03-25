@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>NexCorp SOC &mdash; Incident Response</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --blue:#1a6bcc;--blue2:#0f4fa0;--blue3:#e8f0fb;
+  --red:#d63b3b;--red2:#fdf0f0;--red3:#ffd7d7;
+  --orange:#e07c00;--or2:#fff4e5;
+  --green:#1a8a4a;--gr2:#edf8f2;
+  --bg:#f0f4fa;--card:#fff;
+  --bdr:#dce5f0;--bdr2:#c5d4e8;
+  --tx:#0d1b2e;--tx2:#3d5270;--tx3:#6b82a0;
+  --sh:0 1px 4px rgba(15,50,100,.08),0 4px 16px rgba(15,50,100,.06);
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);font-size:13px;min-height:100vh;overflow-x:hidden}
+button,input{font-family:inherit}
+
+/* TOPBAR */
+.topbar{background:var(--blue2);display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:50px;position:sticky;top:0;z-index:300;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+.tl{display:flex;align-items:center;gap:11px}
+.logo-sq{width:30px;height:30px;background:linear-gradient(135deg,#4da6ff,#1a6bcc);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;flex-shrink:0}
+.t-title{font-size:14px;font-weight:600;color:#fff}
+.t-sub{font-size:10px;color:rgba(255,255,255,.5);font-weight:400}
+.tr{display:flex;align-items:center;gap:14px}
+.t-s{display:flex;flex-direction:column;align-items:center}
+.t-s .v{font-size:18px;font-weight:700;color:#fff;line-height:1}
+.t-s .l{font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.6px}
+.tdiv{width:1px;height:24px;background:rgba(255,255,255,.15)}
+.livepill{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#fff}
+.livepill::before{content:'';width:6px;height:6px;border-radius:50%;background:#ff5555;animation:lp 1.4s ease-in-out infinite}
+@keyframes lp{0%,100%{box-shadow:0 0 0 3px rgba(255,85,85,.3)}50%{box-shadow:0 0 0 7px rgba(255,85,85,.08)}}
+#clk{font-size:11px;color:rgba(255,255,255,.55)}
+
+/* TICKER */
+.ticker{background:#fff8e6;border-bottom:2px solid #ffc107;padding:5px 16px;display:flex;align-items:center;gap:10px;overflow:hidden;flex-shrink:0}
+.t-lbl{background:#e07c00;color:#fff;padding:2px 8px;border-radius:3px;font-weight:700;font-size:10px;letter-spacing:.8px;white-space:nowrap;flex-shrink:0}
+.t-scroll{overflow:hidden;flex:1}
+.t-inner{display:inline-block;white-space:nowrap;animation:scrolltick 55s linear infinite;font-size:11.5px;color:#5c3d00;font-weight:500}
+@keyframes scrolltick{0%{transform:translateX(100vw)}100%{transform:translateX(-100%)}}
+.t-inner span{margin:0 44px}
+
+/* LAYOUT */
+.layout{display:flex;min-height:calc(100vh - 75px)}
+
+/* SIDEBAR */
+.sidebar{width:268px;min-width:268px;background:var(--card);border-right:1px solid var(--bdr);display:flex;flex-direction:column;position:sticky;top:75px;height:calc(100vh - 75px);overflow:hidden}
+.sb-hd{padding:11px 15px 8px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sb-hd h3{font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.8px}
+.nb{background:var(--red);color:#fff;font-size:9px;font-weight:800;padding:1px 7px;border-radius:10px}
+
+/* NODE CARDS */
+.nc{padding:11px 15px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .12s;border-left:3px solid transparent;flex-shrink:0}
+.nc:hover{background:#f7f9fd}
+.nc.s-blue{background:var(--blue3);border-left-color:var(--blue)}
+.nc.s-red{background:var(--red2);border-left-color:var(--red)}
+.nc.s-orange{background:var(--or2);border-left-color:var(--orange)}
+.nct{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.ncn{font-size:12.5px;font-weight:600;color:var(--tx)}
+.s-blue .ncn{color:var(--blue2)}
+.s-red .ncn{color:var(--red)}
+.s-orange .ncn{color:var(--orange)}
+.badge{font-size:9.5px;font-weight:600;padding:2px 8px;border-radius:12px}
+.b-ok{background:#dcf5e8;color:#1a8a4a;border:1px solid #b3e6c8}
+.b-x{background:var(--red3);color:var(--red);border:1px solid #ffb3b3;animation:bp 1.4s ease infinite}
+.b-sh{background:#fff0d9;color:#c06800;border:1px solid #ffd49a}
+.b-id{background:#f0f4fa;color:var(--tx3);border:1px solid var(--bdr)}
+@keyframes bp{0%,100%{opacity:1}50%{opacity:.6}}
+.ncm{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:9.5px;color:var(--tx3);background:#f0f4fa;padding:1px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace}
+.chip.d{background:var(--red3);color:var(--red);font-weight:600}
+.chip.w{background:#fff0d9;color:#c06800;font-weight:600}
+.chip.g{background:#dcf5e8;color:#1a8a4a;font-weight:600}
+
+/* SIDEBAR LOG */
+.sb-log-h{padding:8px 15px 4px;font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.6px;border-top:1px solid var(--bdr);flex-shrink:0}
+.sb-log-body{overflow-y:auto;flex:1}
+.ml{display:flex;align-items:flex-start;gap:7px;padding:5px 15px;border-bottom:1px solid var(--bdr);font-size:10px}
+.mld{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:2px}
+.dr{background:#d63b3b}.do{background:#e07c00}.dg{background:#1a8a4a}.db{background:#1a6bcc}
+
+/* MAIN */
+.main{flex:1;padding:18px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;min-height:0}
+
+/* OVERVIEW */
+.ov-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.ov{background:var(--card);border-radius:10px;padding:13px 15px;border:1px solid var(--bdr);box-shadow:var(--sh)}
+.ov-l{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:500}
+.ov-v{font-size:24px;font-weight:700;line-height:1;margin-bottom:2px}
+.ov-s{font-size:10px;color:var(--tx3)}
+.c-r .ov-v{color:var(--red)}.c-b .ov-v{color:var(--blue)}.c-o .ov-v{color:var(--orange)}.c-g .ov-v{color:var(--green)}
+
+/* DETAIL PANEL */
+.dp{background:var(--card);border-radius:12px;border:1px solid var(--bdr);box-shadow:var(--sh);overflow:hidden}
+.dp-hd{padding:15px 18px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:12px}
+.dp-hd.hd-n{background:linear-gradient(135deg,#f8faff,#eef4ff)}
+.dp-hd.hd-d{background:linear-gradient(135deg,#fff8f8,#ffeeee)}
+.mi{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.mi-l{background:linear-gradient(135deg,#e8f0ff,#d0e2ff)}
+.mi-w{background:linear-gradient(135deg,#e8f5ff,#d0edff)}
+.mi-c{background:linear-gradient(135deg,#fff0e8,#ffe0cc)}
+.mi-d{background:linear-gradient(135deg,#ffe8e8,#ffd0d0)}
+.mi-m{background:linear-gradient(135deg,#f0e8ff,#e0d0ff)}
+.dp-tw{flex:1}
+.dp-title{font-size:15px;font-weight:700;margin-bottom:2px}
+.dp-sub{font-size:11px;color:var(--tx3)}
+.dp-sum{padding:11px 18px;background:#fafcff;border-bottom:1px solid var(--bdr);font-size:12px;color:var(--tx2);line-height:1.65}
+
+/* ACCORDION */
+.acc{border-bottom:1px solid var(--bdr)}
+.acc:last-child{border-bottom:none}
+.acc-h{padding:10px 18px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .1s;gap:8px;user-select:none}
+.acc-h:hover{background:#f8faff}
+.acc-hl{display:flex;align-items:center;gap:8px}
+.acc-ic{width:25px;height:25px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.acc-t{font-size:12px;font-weight:600;color:var(--tx)}
+.acc-ct{font-size:9.5px;font-weight:600;background:var(--blue3);color:var(--blue);padding:1px 6px;border-radius:10px}
+.acc-ct.r{background:var(--red3);color:var(--red)}
+.acc-ar{font-size:10px;color:var(--tx3);transition:transform .18s;flex-shrink:0}
+.acc-ar.o{transform:rotate(180deg)}
+.acc-b{display:none;padding:0 18px 13px;animation:fd .15s ease}
+.acc-b.o{display:block}
+@keyframes fd{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+/* INFO TABLE */
+.it{width:100%;border-collapse:collapse}
+.it tr{border-bottom:1px solid var(--bdr)}
+.it tr:last-child{border-bottom:none}
+.it td{padding:6px 3px;font-size:11.5px;vertical-align:top}
+.it .k{color:var(--tx3);width:35%;font-weight:500;padding-right:10px;white-space:nowrap;font-size:11px}
+.it .v{color:var(--tx);font-family:'JetBrains Mono',monospace;font-size:11px;word-break:break-all}
+.it .v.d{color:var(--red);font-weight:600}
+.it .v.w{color:var(--orange);font-weight:600}
+.it .v.g{color:var(--green);font-weight:600}
+
+/* EXFIL */
+.xb{background:#fff8f8;border:1px solid var(--red3);border-radius:8px;padding:11px 13px;margin-bottom:8px}
+.xb-t{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.xb-l{font-size:12px;font-weight:600;color:var(--red)}
+.xb-b{font-size:11px;color:var(--tx3);font-family:'JetBrains Mono',monospace}
+.xbar{height:8px;background:#fdd;border-radius:4px;overflow:hidden;margin-bottom:6px}
+.xfill{height:100%;background:linear-gradient(90deg,#d63b3b,#ff6b6b);border-radius:4px;animation:xa 28s linear forwards}
+@keyframes xa{0%{width:40%}100%{width:100%}}
+.xmeta{display:flex;gap:14px;font-size:10.5px;color:var(--tx3)}
+
+/* CCTV */
+.cam-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+@media(min-width:900px){.cam-grid{grid-template-columns:repeat(3,1fr)}}
+.cam{background:#000;border-radius:8px;overflow:hidden;position:relative;border:2px solid #2a2a2a}
+.cam.hot{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
+.cam img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;filter:contrast(1.08) saturate(.85) brightness(.92)}
+.cam-none{width:100%;aspect-ratio:16/9;background:#0d0d0d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.cam-none-ic{font-size:20px;opacity:.2}
+.cam-none-t{font-size:9px;color:rgba(255,255,255,.2);font-family:'JetBrains Mono',monospace}
+.cam-ov{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.5) 0%,transparent 28%,transparent 68%,rgba(0,0,0,.6) 100%);pointer-events:none}
+.cam-lbl{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.72);color:#fff;font-size:9.5px;font-weight:600;padding:2px 7px;border-radius:4px;font-family:'JetBrains Mono',monospace}
+.cam-rec{position:absolute;top:6px;right:6px;display:flex;align-items:center;gap:4px;background:rgba(0,0,0,.72);padding:2px 7px;border-radius:4px;font-size:9.5px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.rec-d{width:6px;height:6px;border-radius:50%;background:#ff4444;animation:rb 1s step-end infinite}
+@keyframes rb{0%,100%{opacity:1}50%{opacity:0}}
+.cam-idle{color:rgba(255,255,255,.4)}
+.cam-bt{position:absolute;bottom:4px;left:6px;right:6px;display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.75)}
+.cam-ts{background:rgba(0,0,0,.6);padding:1px 5px;border-radius:3px}
+.cam-ip{background:rgba(0,0,0,.6);padding:1px 5px;border-radius:3px}
+
+/* FILE EXPLORER */
+.fe{background:#fafcff;border:1px solid var(--bdr);border-radius:8px;overflow:hidden}
+.fe-hd{display:flex;align-items:center;gap:8px;padding:6px 11px;background:#f0f4fa;border-bottom:1px solid var(--bdr);font-size:10.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace;font-weight:600}
+.fe-path{display:flex;align-items:center;flex-wrap:wrap;gap:2px;padding:5px 11px;background:#f5f8ff;border-bottom:1px solid var(--bdr);font-size:11px;font-family:'JetBrains Mono',monospace;min-height:28px}
+.crumb{cursor:pointer;color:var(--blue);padding:2px 4px;border-radius:3px;transition:background .1s}
+.crumb:hover{background:var(--blue3)}
+.path-sep{color:var(--tx3)}
+.fe-list{max-height:400px;overflow-y:auto}
+.fe-row{display:flex;align-items:center;gap:9px;padding:6px 11px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .1s;font-size:11.5px}
+.fe-row:last-child{border-bottom:none}
+.fe-row:hover{background:#f0f6ff}
+.fe-row.fd:hover{background:#eef3ff}
+.fe-ic{font-size:13px;width:17px;text-align:center;flex-shrink:0}
+.fe-nm{flex:1;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fe-row.fd .fe-nm{color:var(--blue);font-weight:600}
+.fe-sz{color:var(--tx3);font-size:10px;white-space:nowrap;flex-shrink:0}
+.stag{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--red3);color:var(--red);white-space:nowrap;flex-shrink:0}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(10,20,40,.6);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.mo-box{background:var(--card);border-radius:13px;box-shadow:0 8px 48px rgba(0,0,0,.22);width:100%;max-width:700px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+.mo-hd{padding:12px 15px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;background:#f8faff;flex-shrink:0}
+.mo-nm{font-size:13px;font-weight:600;color:var(--tx)}
+.mo-pa{font-size:10px;color:var(--tx3);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.mo-x{width:26px;height:26px;border-radius:6px;background:var(--bdr);color:var(--tx2);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;transition:background .1s}
+.mo-x:hover{background:var(--red3);color:var(--red)}
+.mo-warn{display:flex;align-items:center;gap:6px;background:var(--red3);color:var(--red);padding:5px 15px;font-size:11px;font-weight:600;border-bottom:1px solid var(--red3);flex-shrink:0}
+.mo-body{padding:13px 15px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.65;color:#1a2a1a;background:#f9fff9;white-space:pre-wrap;word-break:break-all;flex:1}
+.mo-ft{padding:7px 15px;border-top:1px solid var(--bdr);background:#f8faff;display:flex;justify-content:space-between;font-size:10.5px;color:var(--tx3);flex-shrink:0}
+
+/* LOG WIDGET */
+.lw{background:#fafcff;border:1px solid var(--bdr);border-radius:8px;overflow:hidden}
+.lw-h{padding:7px 11px;background:#f0f4fa;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:var(--tx2)}
+.lw-s{max-height:300px;overflow-y:auto}
+.lr{display:flex;align-items:flex-start;gap:8px;padding:5px 11px;border-bottom:1px solid var(--bdr);font-size:11px}
+.lr:last-child{border-bottom:none}
+.ld{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.lt{color:var(--tx3);font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap;flex-shrink:0}
+.lm{color:var(--tx);flex:1;line-height:1.4}
+
+/* PLACEHOLDER */
+.ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:14px;color:var(--tx3);text-align:center}
+.ph-ic{font-size:44px;opacity:.18}
+.ph-t{font-size:14px;font-weight:500}
+.ph-s{font-size:12px;max-width:260px;line-height:1.6}
+
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tl">
+    <div class="logo-sq">N</div>
+    <div>
+      <div class="t-title">NexCorp Security Operations Centre</div>
+      <div class="t-sub">Incident Response Platform &mdash; Case #INC-2026-0319</div>
+    </div>
+  </div>
+  <div class="tr">
+    <div class="t-s"><div class="v" style="color:#ff7070">5</div><div class="l">Compromised</div></div>
+    <div class="tdiv"></div>
+    <div class="t-s"><div class="v">4</div><div class="l">Sessions</div></div>
+    <div class="tdiv"></div>
+    <div class="t-s"><div class="v" style="color:#ffaa55">4.2 GB</div><div class="l">Exfiltrated</div></div>
+    <div class="tdiv"></div>
+    <div class="livepill">LIVE</div>
+    <div id="clk"></div>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker">
+  <span class="t-lbl">&#9888; CRITICAL</span>
+  <div class="t-scroll"><div class="t-inner">
+    <span>&#9632; ACTIVE EXFILTRATION &rarr; db-nexcorp-mysql01 &rarr; 847 MB / 2.1 GB transferred to 10.0.0.44</span>
+    <span>&#9632; ROOT ACCESS &rarr; srv-nexcorp-prod01 (172.16.4.23) &rarr; uptime 5d 14h</span>
+    <span>&#9632; DOMAIN ADMIN CREDENTIALS &rarr; NEXCORP\kadmin &rarr; plaintext password obtained via wdigest dump</span>
+    <span>&#9632; CCTV SYSTEM &rarr; 5 camera feeds accessible &rarr; RTSP authentication disabled &rarr; 192.168.10.5</span>
+    <span>&#9632; EXCHANGE SERVER &rarr; ProxyLogon unpatched &rarr; 214 mailboxes indexed &rarr; CEO mail exported 1.8 GB</span>
+    <span>&#9632; STRIPE LIVE KEYS EXPOSED &rarr; sk_live_4xQ8mNpR7vKjL2wE9hU3... &rarr; /var/www/html/config/stripe_keys.php</span>
+  </div></div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-hd">
+      <h3>Compromised Nodes</h3>
+      <span class="nb">5</span>
+    </div>
+    <div id="node-list"></div>
+    <div class="sb-log-h">Live Activity</div>
+    <div class="sb-log-body" id="sb-log"></div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="main">
+    <div class="ph">
+      <div class="ph-ic">&#128737;</div>
+      <div class="ph-t">Select a compromised node</div>
+      <div class="ph-s">Click any machine in the sidebar to inspect breach details, filesystem, and evidence.</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="mo" id="mo" style="display:none" onclick="if(event.target===this)closeMo()">
+  <div class="mo-box">
+    <div class="mo-hd">
+      <div><div class="mo-nm" id="mo-nm"></div><div class="mo-pa" id="mo-pa"></div></div>
+      <div class="mo-x" onclick="closeMo()">&#10005;</div>
+    </div>
+    <div class="mo-warn" id="mo-warn" style="display:none">&#9888;&nbsp;Sensitive data detected in this file</div>
+    <div class="mo-body" id="mo-body"></div>
+    <div class="mo-ft"><span id="mo-info"></span><span>UTF-8</span></div>
+  </div>
+</div>
+
+<script>
+var FC={}, FS={};
+
+var NODES = [
+  {name:"srv-nexcorp-prod01", ip:"172.16.4.23", os:"Ubuntu 18.04.5 LTS", role:"Web / App Server",
+   access:"ROOT (uid=0)", icon:"mi-l", emoji:"&#128190;", hcls:"hd-n", root:"/", win:false,
+   badge:"b-ok", btxt:"Active", selcls:"s-blue",
+   chips:[["172.16.4.23",""],["Ubuntu 18.04",""],["ROOT","d"]],
+   sum:"Production web server. Compromised via CVE-2019-0708 (Tomcat AJP RCE). Full root shell obtained. SSH backdoor installed on port 2222. Cron-based persistence running every 10 minutes via /tmp/.x11-unix/.svc.",
+   secs:[
+     {t:"Access Details",ic:"&#128272;",bg:"#fff0d9",rows:[["Access Level","ROOT (uid=0)","d"],["Entry Vector","CVE-2019-0708 Tomcat AJP RCE","w"],["Session","Reverse Shell port 4444 ESTABLISHED","g"],["Uptime","5 days 14 hours","g"],["First Seen","2026-03-19 02:14:33",""]]},
+     {t:"Persistence",ic:"&#128302;",bg:"#ffe8e8",rows:[["SSH Backdoor","Port 2222 LISTENING","d"],["Cron Entry","*/10 * * * * root /tmp/.x11-unix/.svc","d"],["Backdoor Account","backdoor:P@ssw0rd123 added to sudoers","d"],["Antivirus","Not installed","g"],["Firewall","UFW disabled","g"]]},
+     {t:"Network",ic:"&#127760;",bg:"#e8f0ff",rows:[["Internal IP","172.16.4.23 / 255.255.255.0",""],["Open Ports","22, 80, 443, 3306, 4444, 8080",""],["Active C2","172.16.4.23:4444 -> 10.0.0.44:51234","d"]]},
+     {t:"Key Findings",ic:"&#128204;",bg:"#e8ffe8",rows:[["Stripe Live Keys","sk_live_4xQ8mNpR7vK... in stripe_keys.php","d"],["AWS Credentials","AKIAIOSFODNN7NEXCORP in production.env","d"],["JWT Secret","/opt/nexcorp/config/jwt_secret.txt","d"],["All Network Passwords","/root/recon/passwords_found.txt","d"],["Payroll Data","/opt/nexcorp/finance/ (q3, q4 payroll)","w"]]}
+   ]},
+  {name:"db-nexcorp-mysql01", ip:"172.16.4.31", os:"Debian GNU/Linux 10", role:"Database Server MySQL 5.7",
+   access:"ROOT (uid=0)", icon:"mi-d", emoji:"&#128083;", hcls:"hd-d", root:"/", win:false, exfil:true,
+   badge:"b-x", btxt:"&#9650; Exfiltrating", selcls:"s-red",
+   chips:[["172.16.4.31",""],["Debian 10",""],["ROOT","d"]],
+   sum:"Primary production database. Lateral movement via stolen SSH key from jbrown on prod01. Full database dump completed. 847 of 1240 passwords cracked. 2.1 GB actively transferring to attacker C2 server.",
+   secs:[
+     {t:"Access Details",ic:"&#128272;",bg:"#fff0d9",rows:[["Access Level","ROOT (uid=0)","d"],["Entry Vector","Lateral move via stolen SSH key (jbrown)","w"],["Session","Reverse Shell port 5555","g"],["Exfil Status","ACTIVE 847 MB / 2.1 GB","d"],["First Seen","2026-03-19 03:02:11",""]]},
+     {t:"Database Contents",ic:"&#128202;",bg:"#ffe8e8",rows:[["Database","nexcorp_prod 34 tables","d"],["Customers","48,240 rows with PII + payment data","d"],["Employees","1,204 staff records with salaries","w"],["Passwords","847 / 1240 cracked plaintext","d"],["Payments","340 MB payment transaction history","w"]]},
+     {t:"Persistence",ic:"&#128302;",bg:"#ffe8e8",rows:[["Hidden Dir","/root/.backdoor/ beacon binary + config","d"],["Cron","*/5 * * * * /root/.backdoor/svc","d"]]}
+   ]},
+  {name:"wkstn-nxc-adm02", ip:"172.16.2.11", os:"Windows 10 Pro 19045", role:"Domain Admin Workstation",
+   access:"NT AUTHORITY\\SYSTEM", icon:"mi-w", emoji:"&#128187;", hcls:"hd-n", root:"C:\\", win:true,
+   badge:"b-sh", btxt:"Meterpreter", selcls:"s-orange",
+   chips:[["172.16.2.11",""],["Windows 10",""],["SYSTEM","w"]],
+   sum:"Domain Administrator workstation. Compromised via phishing email with macro payload. Meterpreter running covertly over HTTPS port 443. Domain Admin credentials extracted in plaintext via wdigest. ntds.dit (Active Directory database) copied.",
+   secs:[
+     {t:"Access Details",ic:"&#128272;",bg:"#fff0d9",rows:[["Access Level","NT AUTHORITY\\SYSTEM","d"],["Domain User","NEXCORP\\kadmin (Domain Admin)","d"],["Entry Vector","Phishing email macro payload (.docm)","w"],["Session","Meterpreter HTTPS port 443","g"],["First Seen","2026-03-20 11:44:07",""]]},
+     {t:"Credentials Obtained",ic:"&#128272;",bg:"#ffe8e8",rows:[["NTLM Hash","a87f3a337d73085c45f9416be5787d86","d"],["Plaintext Password","K@dmin_NxC0rp!2025 (wdigest dump)","d"],["Admin Password","Adm1n#NxSrv2024 (credman)","d"],["NTDS.dit","Copied all AD hashes 11 MB","d"]]},
+     {t:"Persistence",ic:"&#128302;",bg:"#ffe8e8",rows:[["Startup","C:\\ProgramData\\Startup\\svchost32.exe","d"],["Beacon","beacon.exe PID 3812 HTTPS C2 active","d"],["AV","Windows Defender signature bypassed","g"]]}
+   ]},
+  {name:"cctv-hub-nxc-gf", ip:"192.168.10.5", os:"Embedded Linux BusyBox v1.30.1", role:"Hikvision DS-7608NI CCTV Hub",
+   access:"root", icon:"mi-c", emoji:"&#128247;", hcls:"hd-n", root:"/", win:false, isCCTV:true,
+   badge:"b-sh", btxt:"SSH", selcls:"s-blue",
+   chips:[["192.168.10.5",""],["Embedded Linux",""],["root","g"]],
+   sum:"Building CCTV NVR hub. Default credentials (admin:12345) were never changed. RTSP stream authentication is completely disabled allowing anyone on the network to view all camera feeds without any login. 30 days of recordings accessible.",
+   secs:[
+     {t:"Access Details",ic:"&#128272;",bg:"#fff0d9",rows:[["Access Level","root","g"],["Entry Vector","Default credentials admin:12345","d"],["RTSP Auth","DISABLED no login required for streams","d"],["Session","SSH port 22","g"],["First Seen","2026-03-21 07:19:02",""]]},
+     {t:"Camera Streams",ic:"&#128247;",bg:"#ffe8e8",rows:[["CH01 Gate","rtsp://192.168.10.5:554/Streaming/Channels/101","d"],["CH02 Main Lobby","rtsp://192.168.10.5:554/Streaming/Channels/201","w"],["CH03 Server Room","rtsp://192.168.10.5:554/Streaming/Channels/301","d"],["CH04 Emergency Exit","rtsp://192.168.10.5:554/Streaming/Channels/401","w"],["CH05 Armory","rtsp://192.168.10.5:554/Streaming/Channels/501","d"]]},
+     {t:"NVR Recordings",ic:"&#128190;",bg:"#e8f0ff",rows:[["Retention","30 days all channels","d"],["Storage Today","5 x 4.1 GB MP4 files","w"],["Server Room","ch03_serverroom.mp4 4.1 GB","d"],["Armory","ch05_armory.mp4 4.1 GB","d"]]}
+   ]},
+  {name:"mail-nexcorp-ex01", ip:"172.16.4.18", os:"Windows Server 2016 Exchange 2019", role:"Corporate Mail Server",
+   access:"NT AUTHORITY\\SYSTEM", icon:"mi-m", emoji:"&#128140;", hcls:"hd-n", root:"C:\\", win:true,
+   badge:"b-sh", btxt:"Web Shell", selcls:"s-orange",
+   chips:[["172.16.4.18",""],["Win Server 2016",""],["SYSTEM","w"]],
+   sum:"Corporate Exchange 2019 mail server. ProxyLogon (CVE-2021-26855) exploited. Server is still unpatched. Web shell planted in OWA auth directory. 214 mailboxes indexed and exported. CEO, Finance and HR mail fully exfiltrated.",
+   secs:[
+     {t:"Access Details",ic:"&#128272;",bg:"#fff0d9",rows:[["Access Level","NT AUTHORITY\\SYSTEM + Exchange Admin","d"],["Entry Vector","ProxyLogon CVE-2021-26855","d"],["Web Shell","\\owa\\auth\\svcdiag.aspx ACTIVE","d"],["Patch Status","UNPATCHED scheduled Q2 2026","d"],["First Seen","2026-03-20 23:58:41",""]]},
+     {t:"Mail Exfiltration",ic:"&#128140;",bg:"#ffe8e8",rows:[["Mailboxes","214 corporate accounts indexed","d"],["CEO Mail","ceo@nexcorp.com 2140 emails 1.8 GB","d"],["Finance Mail","Q1 + Q2 emails 740 MB pst","d"],["HR All Staff","All staff mail 2.1 GB pst","w"]]},
+     {t:"Server Info",ic:"&#128187;",bg:"#e8f0ff",rows:[["OS","Windows Server 2016 14393.5125",""],["Exchange","2019 CU12",""],["OWA","https://172.16.4.18/owa",""],["ECP Admin","https://172.16.4.18/ecp",""]]}
+   ]}
+];
+
+var CAMS = [
+  {id:"gate",       lbl:"CH01 Gate",          loc:"Main Entrance", hot:false},
+  {id:"lobby",      lbl:"CH02 Main Lobby",     loc:"Ground Floor",  hot:false},
+  {id:"serverroom", lbl:"CH03 Server Room",    loc:"Level 2",       hot:true},
+  {id:"exit",       lbl:"CH04 Emergency Exit", loc:"North Wing",    hot:false},
+  {id:"armory",     lbl:"CH05 Armory",         loc:"Basement",      hot:true}
+];
+
+var LOGS = [
+  {c:"dr",m:"EXFIL ACTIVE db-nexcorp-mysql01 847 MB / 2.1 GB"},
+  {c:"dg",m:"SESSION ALIVE srv-nexcorp-prod01 uptime 5d 14h"},
+  {c:"do",m:"NTLM CRACKING NEXCORP\\kadmin 23%"},
+  {c:"dg",m:"METERPRETER OK wkstn-nxc-adm02 44ms"},
+  {c:"dg",m:"WEB SHELL ALIVE mail-nexcorp-ex01"},
+  {c:"dr",m:"CAMERA STREAM CH03 Server Room LIVE"},
+  {c:"do",m:"FILE STAGED users_plain.txt 44K"},
+  {c:"dg",m:"HEARTBEAT all 5 nodes alive"},
+  {c:"dr",m:"K@dmin_NxC0rp!2025 obtained wdigest"},
+  {c:"do",m:"NTDS.dit copied 11MB AD database"}
+];
+
+var SENS = ["password","shadow","credential","cred","stripe","api_key","production.env","mimikatz","_backup","db.php","private","secret","jwt","bank","salary","payroll","id_rsa","config.json",".env","history","transfer","exfil","users_plain","loot","token","ntds","svcdiag","beacon","proxylogon","stream_tap","rtsp_pull","my.cnf","debian.cnf","authorized_keys"];
+
+function isSens(p){var pl=p.toLowerCase();for(var i=0;i<SENS.length;i++)if(pl.indexOf(SENS[i])!==-1)return true;return false;}
+
+// Load data from API
+async function loadData(){
+  try{
+    var r1=await fetch('/api/fc'); FC=await r1.json();
+    var r2=await fetch('/api/fs'); var tmp=await r2.json();
+    // convert string keys to int
+    FS={};for(var k in tmp)FS[parseInt(k)]=tmp[k];
+  }catch(e){console.log('data load error',e);}
+  buildSidebar();
+  buildSideLog();
+  pick(0);
+}
+
+function buildSidebar(){
+  var h='';
+  NODES.forEach(function(n,i){
+    h+='<div class="nc" onclick="pick('+i+')" id="nc-'+i+'">';
+    h+='<div class="nct"><span class="ncn">'+n.name+'</span><span class="badge '+n.badge+'">'+n.btxt+'</span></div>';
+    h+='<div class="ncm">';
+    n.chips.forEach(function(c){h+='<span class="chip '+c[1]+'">'+c[0]+'</span>';});
+    h+='</div></div>';
+  });
+  document.getElementById('node-list').innerHTML=h;
+}
+
+function buildSideLog(){
+  var now=Date.now(),h='';
+  LOGS.forEach(function(l,i){
+    var d=new Date(now-(LOGS.length-i)*88000);
+    var ts=d.toTimeString().slice(0,8);
+    h+='<div class="ml"><div class="mld '+l.c+'"></div><div><div style="font-size:10px;color:var(--tx)">'+l.m+'</div><div style="font-size:9px;color:var(--tx3);font-family:JetBrains Mono,monospace">'+ts+'</div></div></div>';
+  });
+  document.getElementById('sb-log').innerHTML=h;
+}
+
+function pick(i){
+  document.querySelectorAll('.nc').forEach(function(el){el.className='nc';});
+  document.getElementById('nc-'+i).classList.add(NODES[i].selcls);
+  renderDetail(i);
+}
+
+function renderDetail(ni){
+  var n=NODES[ni];
+  var h='';
+
+  // overview cards
+  h+='<div class="ov-row">';
+  h+='<div class="ov c-r"><div class="ov-l">Machines Owned</div><div class="ov-v">5</div><div class="ov-s">of 8 discovered</div></div>';
+  h+='<div class="ov c-b"><div class="ov-l">Active Sessions</div><div class="ov-v">4</div><div class="ov-s">1 idle</div></div>';
+  h+='<div class="ov c-o"><div class="ov-l">Data Exfiltrated</div><div class="ov-v">4.2 GB</div><div class="ov-s">+847 MB in progress</div></div>';
+  h+='<div class="ov c-g"><div class="ov-l">Detection Status</div><div class="ov-v">None</div><div class="ov-s">No alerts triggered</div></div>';
+  h+='</div>';
+
+  // detail panel
+  h+='<div class="dp">';
+
+  // header
+  h+='<div class="dp-hd '+n.hcls+'"><div class="mi '+n.icon+'">'+n.emoji+'</div>';
+  h+='<div class="dp-tw"><div class="dp-title">'+n.name+'</div>';
+  h+='<div class="dp-sub">'+n.ip+' &middot; '+n.os+' &middot; '+n.role+'</div></div>';
+  h+='<span class="badge '+(ni===1?'b-x':ni===2||ni===4?'b-sh':'b-ok')+'">'+n.access+'</span></div>';
+
+  h+='<div class="dp-sum">'+n.sum+'</div>';
+
+  // exfil widget
+  if(n.exfil){
+    h+='<div class="acc"><div class="acc-h" onclick="tog(this)"><div class="acc-hl">';
+    h+='<div class="acc-ic" style="background:#ffe8e8">&#9650;</div>';
+    h+='<span class="acc-t" style="color:var(--red)">Exfiltration In Progress</span>';
+    h+='<span class="acc-ct r">LIVE</span></div><span class="acc-ar o">&#9660;</span></div>';
+    h+='<div class="acc-b o"><div class="xb"><div class="xb-t"><span class="xb-l">&#9650; Transferring to 10.0.0.44</span><span class="xb-b">847 MB / 2.1 GB</span></div>';
+    h+='<div class="xbar"><div class="xfill"></div></div>';
+    h+='<div class="xmeta"><span>38 KB/s</span><span>ETA ~32 min</span><span>AES-256 encrypted tunnel</span></div></div></div></div>';
+  }
+
+  // CCTV
+  if(n.isCCTV){
+    h+='<div class="acc"><div class="acc-h" onclick="tog(this)"><div class="acc-hl">';
+    h+='<div class="acc-ic" style="background:#ffe8e8">&#128247;</div>';
+    h+='<span class="acc-t">Live Camera Feeds</span><span class="acc-ct r">5 LIVE</span></div><span class="acc-ar o">&#9660;</span></div>';
+    h+='<div class="acc-b o">';
+    h+='<div style="margin-bottom:9px;font-size:11px;font-weight:600;color:var(--red)">&#9888; RTSP authentication disabled &mdash; feeds accessible without login</div>';
+    h+='<div class="cam-grid">';
+    CAMS.forEach(function(c,ci){
+      h+='<div class="cam'+(c.hot?' hot':'')+'">';
+      h+='<img src="/cam/'+c.id+'" style="display:block" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">';
+      h+='<div class="cam-none" style="display:none"><div class="cam-none-ic">&#128247;</div><div class="cam-none-t">NO SIGNAL</div></div>';
+      h+='<div class="cam-ov"></div>';
+      h+='<div class="cam-lbl">'+c.lbl+'</div>';
+      if(c.hot){h+='<div class="cam-rec"><div class="rec-d"></div>REC</div>';}
+      else{h+='<div class="cam-rec cam-idle">&#9632; IDLE</div>';}
+      h+='<div class="cam-bt"><span class="cam-ts" id="cts-'+c.id+'"></span><span class="cam-ip">192.168.10.5:554</span></div></div>';
+    });
+    h+='</div></div></div>';
+  }
+
+  // info sections
+  n.secs.forEach(function(s,si){
+    var open=si===0;
+    h+='<div class="acc"><div class="acc-h" onclick="tog(this)"><div class="acc-hl">';
+    h+='<div class="acc-ic" style="background:'+s.bg+'">'+s.ic+'</div>';
+    h+='<span class="acc-t">'+s.t+'</span>';
+    h+='<span class="acc-ct">'+s.rows.length+' items</span></div>';
+    h+='<span class="acc-ar'+(open?' o':'')+'">&#9660;</span></div>';
+    h+='<div class="acc-b'+(open?' o':'')+'"><table class="it">';
+    s.rows.forEach(function(r){
+      h+='<tr><td class="k">'+r[0]+'</td><td class="v '+(r[2]||'')+'">'+r[1]+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  });
+
+  // file explorer
+  h+='<div class="acc"><div class="acc-h" onclick="tog(this)"><div class="acc-hl">';
+  h+='<div class="acc-ic" style="background:#e8f0ff">&#128193;</div>';
+  h+='<span class="acc-t">File System</span></div><span class="acc-ar o">&#9660;</span></div>';
+  h+='<div class="acc-b o" id="fe-wrap">'+buildFE(ni,n.root)+'</div></div>';
+
+  // activity log
+  h+='<div class="acc"><div class="acc-h" onclick="tog(this)"><div class="acc-hl">';
+  h+='<div class="acc-ic" style="background:#f0f4fa">&#128196;</div>';
+  h+='<span class="acc-t">Activity Log</span></div><span class="acc-ar">&#9660;</span></div>';
+  h+='<div class="acc-b"><div class="lw"><div class="lw-h"><span>Recent Events</span></div><div class="lw-s">';
+  var now=Date.now();
+  for(var li=LOGS.length-1;li>=0;li--){
+    var d=new Date(now-(LOGS.length-li)*88000);
+    h+='<div class="lr"><div class="ld '+LOGS[li].c+'"></div><span class="lt">'+d.toTimeString().slice(0,8)+'</span><span class="lm">'+LOGS[li].m+'</span></div>';
+  }
+  h+='</div></div></div></div>';
+
+  h+='</div>'; // close dp
+  document.getElementById('main').innerHTML=h;
+  updateCCTVTs();
+}
+
+function buildFE(ni,path){
+  var fsNode=FS[ni];
+  if(!fsNode)return '<div style="padding:12px;font-size:12px;color:var(--tx3)">Loading...</div>';
+  var entries=fsNode[path];
+  if(!entries){
+    for(var k in fsNode)if(k.toLowerCase()===path.toLowerCase()){entries=fsNode[k];path=k;break;}
+  }
+  if(!entries)return '<div style="padding:12px;font-size:12px;color:var(--tx3)">Directory not found</div>';
+
+  var win=path.indexOf('\\')!==-1, sep=win?'\\':'/';
+  var root=NODES[ni].root;
+
+  // breadcrumb
+  var rel=path;
+  if(win){rel=path.replace(/^C:\\/,'');}
+  else{rel=path.replace(/^\//,'');}
+  var parts=rel?rel.replace(/\\/g,'/').split('/').filter(Boolean):[];
+
+  var bc='<span class="crumb" onclick="navFE('+ni+',\''+esc(root)+'\')" title="root">&#127968;</span>';
+  var built=win?'C:':'' ;
+  parts.forEach(function(p){
+    built=built.replace(/[\/\\]$/,'')+sep+p;
+    bc+='<span class="path-sep">'+(win?'&#92;':/\/$/.test(built)?'':'/')+'</span>';
+    bc+='<span class="crumb" onclick="navFE('+ni+',\''+esc(built)+'\')">'+p+'</span>';
+  });
+
+  var h='<div class="fe">';
+  h+='<div class="fe-hd">&#128193; FILESYSTEM</div>';
+  h+='<div class="fe-path">'+bc+'</div>';
+  h+='<div class="fe-list">';
+
+  if(path!==root){
+    var par=path.replace(/[\/\\][^\/\\]+$/,'')||root;
+    if(!par||par===''||(win&&par==='C:'))par=root;
+    h+='<div class="fe-row fd" onclick="navFE('+ni+',\''+esc(par)+'\')"><span class="fe-ic">&#8593;</span><span class="fe-nm">..</span></div>';
+  }
+
+  entries.forEach(function(e){
+    var nm=e[0], kind=e[1], sz=e[2], sens=e[3];
+    var fp=(path.endsWith(sep)?path:path+sep)+nm;
+    if(kind==='d'){
+      h+='<div class="fe-row fd" onclick="navFE('+ni+',\''+esc(fp)+'\')"><span class="fe-ic">&#128193;</span><span class="fe-nm">'+nm+'</span><span class="fe-sz">DIR</span></div>';
+    }else{
+      var st=sens?'<span class="stag">SENSITIVE</span>':'';
+      h+='<div class="fe-row" onclick="openFile(\''+esc(fp)+'\',\''+nm.replace(/'/g,"\\'")+'\')"><span class="fe-ic">&#128196;</span><span class="fe-nm">'+nm+'</span><span class="fe-sz">'+(sz||'')+'</span>'+st+'</div>';
+    }
+  });
+  h+='</div></div>';
+  return h;
+}
+
+function esc(s){return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+function navFE(ni,path){
+  var w=document.getElementById('fe-wrap');
+  if(w)w.innerHTML=buildFE(ni,path);
+}
+
+function openFile(path,name){
+  var content=FC[path];
+  if(!content){for(var k in FC)if(k.toLowerCase()===path.toLowerCase()){content=FC[k];break;}}
+  if(!content){
+    var ext=(name.split('.').pop()||'').toLowerCase();
+    var big=['mp4','gz','tar','zip','ibd','dmp','pst','dll','exe','bin','xlsx','docx','pptx','vsdx','pdf'];
+    if(big.indexOf(ext)!==-1){
+      content='[Binary file]\n\nName: '+name+'\nPath: '+path+'\n\nThis file is binary and cannot be rendered here.\nTransfer to analysis machine:\n\n  scp root@TARGET:'+path+' ./evidence/'+name;
+    }else{
+      content='[File content]\nPath: '+path+'\n\nContent retrieved from target filesystem.';
+    }
+  }
+  document.getElementById('mo-nm').textContent=name;
+  document.getElementById('mo-pa').textContent=path;
+  document.getElementById('mo-body').textContent=content;
+  document.getElementById('mo-info').textContent='Lines: '+content.split('\n').length;
+  document.getElementById('mo-warn').style.display=isSens(path)?'flex':'none';
+  document.getElementById('mo').style.display='flex';
+}
+
+function closeMo(){document.getElementById('mo').style.display='none';}
+
+function tog(h){
+  var b=h.nextElementSibling, a=h.querySelector('.acc-ar');
+  b.classList.toggle('o'); a.classList.toggle('o');
+}
+
+function updateCCTVTs(){
+  var ts=new Date().toISOString().slice(0,19).replace('T',' ');
+  CAMS.forEach(function(c){
+    var el=document.getElementById('cts-'+c.id);
+    if(el)el.textContent=ts;
+  });
+}
+
+function tick(){
+  var t=new Date().toTimeString().slice(0,8);
+  document.getElementById('clk').textContent=t;
+  updateCCTVTs();
+}
+tick(); setInterval(tick,1000);
+
+loadData();
+</script>
+</body>
+</html>
